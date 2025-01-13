@@ -44,7 +44,7 @@ class Session:
 		return data
 	
 	def _receive_packet(self) -> dict:  # TODO: dict to NamedTuple or smth
-		data = self._receive_peer_bytes(2)
+		data = self._receive_peer_bytes(5)
 		raw_type, raw_length = struct.unpack('!cI', data)
 
 		length = raw_length # length = int.from_bytes(raw_length, 'big')
