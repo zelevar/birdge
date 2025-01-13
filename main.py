@@ -121,6 +121,7 @@ if __name__ == '__main__':
 		session.send_file(open('../image.png', 'rb'))
 	elif mode == 'b':
 		file_data = session.receive_file()
+		print("First 50 bytes of file:", file_data[1][:50])
 		with open('testttt.png', 'wb') as f:
 			f.write(file_data[1])
 	else:
