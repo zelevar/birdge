@@ -1,6 +1,7 @@
 import enum
 import socket
 import struct
+from typing import BinaryIO
 
 import utils
 
@@ -8,7 +9,7 @@ import utils
 class PacketType(enum.Enum):
 	CONNECT = 0
 	ACCEPT = 1
-	MESSAGE = 2
+	FILE = 2
 
 
 class ConnectionState(enum.Enum):
@@ -29,8 +30,8 @@ class Session:
 		self.socket.bind(('0.0.0.0', self.port))
 		self.socket.settimeout(30)
 
-	def _send_packet(self, type: PacketType, content: str = '') -> None:
-		data = struct.pack('!cc', type.value.to_bytes(1, 'big'), len(content).to_bytes(1, 'big')) + content.encode()
+	def _send_packet(self, type: PacketType, content: bytes = b'') -> None:
+		data = struct.pack('!cc', type.value.to_bytes(1, 'big'), len(content).to_bytes(1, 'big')) + content
 		self.socket.sendto(data, self.peer_addr)
 
 	def _receive_peer_bytes(self, size: int) -> bytes:
@@ -42,7 +43,7 @@ class Session:
 		
 		return data
 	
-	def _receive_packet(self) -> dict:
+	def _receive_packet(self) -> dict:  # TODO: dict to NamedTuple or smth
 		data = self._receive_peer_bytes(2)
 		raw_type, raw_length = struct.unpack('!cc', data)
 
@@ -53,8 +54,12 @@ class Session:
 			'type': PacketType(int.from_bytes(raw_type, 'big')),
 			'content': content
 		}
+	
+	def _establish(self) -> None:
+		self.state = ConnectionState.ESTABLISHED
+		print("🎉 connection established!")
 
-	def connect(self, peer_addr: tuple[str, int]) -> bool:
+	def connect(self, peer_addr: tuple[str, int]) -> None:  # -> bool:
 		if self.state != ConnectionState.DISCONNECTED:
 			raise NotImplementedError("must close connection before starting other (close isn't implemented)")
 		
@@ -64,14 +69,27 @@ class Session:
 		packet = self._receive_packet()
 		if packet['type'] == PacketType.CONNECT:
 			self._send_packet(PacketType.ACCEPT)
-			self.state = ConnectionState.ESTABLISHED
-			print("🎉 connection established!")
+			self._establish()
 		elif packet['type'] == PacketType.ACCEPT:
-			self.state = ConnectionState.ESTABLISHED
-			print("🎉 connection established!")
+			self._establish()
 		else:
 			self.state = ConnectionState.DISCONNECTED
 			raise HandshakeError("incorrect incoming packet during handshake")
+	
+	# TODO: is this type annotation right?
+	def send_file(self, file: BinaryIO) -> None:
+		filename = b'flnmenotimplmntd'
+		data = file.read()  # ! read entire file
+		self._send_packet(PacketType.FILE, filename + data)
+
+	# TODO: pack this tuple to the class too
+	def receive_file(self) -> tuple[str, bytes]:  # filename, data
+		packet = self._receive_packet()
+		if packet['type'] != PacketType.FILE:
+			raise Exception(f"Expected FILE, got {packet['type']}")
+		
+		content = packet['content']  # TODO: remove this alias when Packet class is ready
+		return content[:16], content[16:]  # TODO: move to constant (filename max length)
 	
 	def get_external_address(
 		self, stun_host: str = 'stun.ekiga.net'
@@ -90,10 +108,18 @@ class Session:
 if __name__ == '__main__':
 	session = Session()
 
-	my_code = utils.address_to_code(session.get_external_address())
-	print(f"🔒 your code: {my_code}")
+	my_address = session.get_external_address()
+	my_code = utils.address_to_code(my_address)
+	print(f"🔒 your code: {my_code} ({':'.join(map(str, my_address))})")
 
 	peer_code = input("🌎 enter the peer's code: ")
 	peer_addr = utils.code_to_address(peer_code)
 	
 	session.connect(peer_addr)
+	mode = input('choose mode (a. send file; b. receive): ')
+	if mode == 'a':
+		session.send_file(open('tests/image.png', 'rb'))
+	elif mode == 'b':
+		session.receive_file()
+	else:
+		print('wtf??? incorrect mode')
