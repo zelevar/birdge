@@ -72,6 +72,7 @@ class Session:
         if addr != self.peer:
             # TODO: add warning
             # FIXME: recursion limit vulnerability
+            print("warning")
             return self.receive_packet()
         
         return Packet.unpack(data)
