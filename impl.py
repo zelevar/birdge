@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from socket import AF_INET, SOCK_DGRAM, socket
+from socket import AF_INET, SO_RCVBUF, SO_SNDBUF, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import Self
 
 Address = tuple[str, int]
@@ -59,6 +59,8 @@ class Session:
         self.socket = socket(AF_INET, SOCK_DGRAM)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.settimeout(TIMEOUT)
+        self.socket.setsockopt(SOL_SOCKET, SO_SNDBUF, MAX_PACKET_SIZE)
+        self.socket.setsockopt(SOL_SOCKET, SO_RCVBUF, MAX_PACKET_SIZE)
 
     def send_packet(self, packet: Packet) -> None:
         if not self.peer:

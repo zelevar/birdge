@@ -1,4 +1,3 @@
-import time
 from impl import Packet, PacketType, Session
 from utils import address_to_code, code_to_address, get_external_address
 
@@ -18,13 +17,12 @@ mode = input("Select mode (send/recv): ")
 match mode:
     case 'send':
         # session.send_packet(Packet(PacketType.CONNECT))
-        
-        with open('../image.png', 'rb') as f:
-            payload = f.read()
-            print(len(payload))
-            packet = Packet(PacketType.FILE, payload)
-        session.send_packet(packet)
-        time.sleep(5)
+        session.send_packet(Packet(PacketType.FILE, b"p"*15000))
+        # with open('../image.png', 'rb') as f:
+        #     payload = f.read()
+        #     print(len(payload))
+        #     packet = Packet(PacketType.FILE, payload)
+        # session.send_packet(packet)
     case 'recv':
         packet = session.receive_packet()
         print(packet)
