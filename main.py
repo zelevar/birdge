@@ -120,6 +120,8 @@ if __name__ == '__main__':
 	if mode == 'a':
 		session.send_file(open('../image.png', 'rb'))
 	elif mode == 'b':
-		session.receive_file()
+		file_data = session.receive_file()
+		with open('testttt.png', 'wb') as f:
+			f.write(file_data[1])
 	else:
 		print('wtf??? incorrect mode')
