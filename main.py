@@ -17,14 +17,17 @@ print("Connected!")
 mode = input("Select mode (send/recv): ")
 match mode:
     case 'send':
-        session.send_packet(Packet(PacketType.CONNECT))
+        # session.send_packet(Packet(PacketType.CONNECT))
+        
         with open('../image.png', 'rb') as f:
-            packet = Packet(PacketType.FILE, f.read())
-        print(packet.payload)
+            payload = f.read()
+            print(len(payload))
+            packet = Packet(PacketType.FILE, payload)
         session.send_packet(packet)
         time.sleep(5)
     case 'recv':
         packet = session.receive_packet()
+        print(packet)
         if packet.type == PacketType.FILE:
             with open(f'{peer_code}.png', 'wb') as f:
                 f.write(packet.payload)
