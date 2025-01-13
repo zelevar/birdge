@@ -17,6 +17,7 @@ print("Connected!")
 mode = input("Select mode (send/recv): ")
 match mode:
     case 'send':
+        session.send_packet(Packet(PacketType.CONNECT))
         with open('../image.png', 'rb') as f:
             packet = Packet(PacketType.FILE, f.read())
         print(packet.payload)
