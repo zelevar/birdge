@@ -1,3 +1,4 @@
+import time
 from impl import Packet, PacketType, Session
 from utils import address_to_code, code_to_address, get_external_address
 
@@ -18,10 +19,15 @@ match mode:
     case 'send':
         with open('../image.png', 'rb') as f:
             packet = Packet(PacketType.FILE, f.read())
+        print(packet.payload)
         session.send_packet(packet)
+        time.sleep(5)
     case 'recv':
         packet = session.receive_packet()
-        with open(f'{peer_code}.png', 'wb') as f:
-            f.write(packet.payload)
+        if packet.type == PacketType.FILE:
+            with open(f'{peer_code}.png', 'wb') as f:
+                f.write(packet.payload)
+        else:
+            raise ValueError(f"expected FILE, got {packet.type.name}")
     case _:
         raise ValueError("unknown mode")
