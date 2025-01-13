@@ -31,7 +31,7 @@ class Session:
 		self.socket.settimeout(30)
 
 	def _send_packet(self, type: PacketType, content: bytes = b'') -> None:
-		data = struct.pack('!cI', type.value.to_bytes(1, 'big'), len(content).to_bytes(32, 'big')) + content
+		data = struct.pack('!cI', type.value.to_bytes(1, 'big'), len(content)) + content
 		self.socket.sendto(data, self.peer_addr)
 
 	def _receive_peer_bytes(self, size: int) -> bytes:
@@ -47,7 +47,7 @@ class Session:
 		data = self._receive_peer_bytes(2)
 		raw_type, raw_length = struct.unpack('!cI', data)
 
-		length = int.from_bytes(raw_length, 'big')
+		length = raw_length # length = int.from_bytes(raw_length, 'big')
 		content = self._receive_peer_bytes(length) if length > 0 else None
 		
 		return {
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 	session.connect(peer_addr)
 	mode = input('choose mode (a. send file; b. receive): ')
 	if mode == 'a':
-		session.send_file(open('tests/image.png', 'rb'))
+		session.send_file(open('../image.png', 'rb'))
 	elif mode == 'b':
 		session.receive_file()
 	else:
