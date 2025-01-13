@@ -11,6 +11,7 @@ MAX_PACKET_SIZE = 65507
 class PacketType(Enum):
     CONNECT = 0
     ACCEPT = 1
+    FILE = 2
 
 
 @dataclass
@@ -46,6 +47,7 @@ class HandshakeError(Exception):
     ...
 
 
+# TODO: add debug logs about every action
 class Session:
     state: SessionState = SessionState.DISCONNECTED
     peer: Address | None = None
