@@ -85,7 +85,7 @@ class Peer:
         packet = self.receive()
         match packet.type:
             case PacketType.CONNECT:
-                self.send(Packet(PacketType.CONNECT))
+                self.send(Packet(PacketType.ACCEPT))
                 self._establish()
             case PacketType.ACCEPT:
                 self._establish()
@@ -99,5 +99,6 @@ peer_code = input("Peer's code: ")
 peer_addr = code_to_address(peer_code)
 
 peer = Peer(peer_addr)
+print("Connected!")
 packet = peer.receive()
 print(packet)
