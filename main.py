@@ -1,5 +1,5 @@
 from impl import Packet, PacketType, Session
-from utils import address_to_code, code_to_address, get_external_address
+from utils import address_to_code, chunkify, code_to_address, get_external_address
 
 session = Session()
 
@@ -17,19 +17,33 @@ mode = input("Select mode (send/recv): ")
 match mode:
     case 'send':
         # session.send_packet(Packet(PacketType.CONNECT))
-        session.send_packet(Packet(PacketType.FILE, b"p"*15000))
-        # with open('../image.png', 'rb') as f:
-        #     payload = f.read()
-        #     print(len(payload))
-        #     packet = Packet(PacketType.FILE, payload)
-        # session.send_packet(packet)
+        # session.send_packet(Packet(PacketType.FILE, b"p"*10100))
+        with open('../image.png', 'rb') as f:
+            # TODO: read only part of file (because it can be larger than available RAM) 
+            payload = f.read()  
+
+        chunks = chunkify(payload, 1468)
+        chunk_count = len(chunks).to_bytes(4)
+        session.send_packet(Packet(PacketType.TRANSFER_BEGIN, ))
+
+        # TODO: make it asynchronous
+        for chunk_index, chunk in enumerate(chunks):
+            payload = chunk_index.to_bytes(4) + chunk
+            session.send_packet(Packet(PacketType.TRANSFER_CHUNK, payload))
     case 'recv':
-        packet = session.receive_packet()
-        print(packet)
-        if packet.type == PacketType.FILE:
+        begin_packet = session.receive_packet()
+        if begin_packet.type == PacketType.TRANSFER_BEGIN:
+            # FIXME: conflict with prev (match)case block - move to the function
+            chunk_count: int = int.from_bytes(begin_packet.payload[:4])  # type: ignore
+
             with open(f'{peer_code}.png', 'wb') as f:
-                f.write(packet.payload)
+                # FIXME: chunk sequence isn't checked (and it's unneccessary when you're working with sync send)
+                for _ in range(chunk_count):
+                    chunk_packet = session.receive_packet()
+                    if chunk_packet.type != PacketType.TRANSFER_CHUNK:
+                        raise Exception(f'got {chunk_packet.type} while transfering chunks')
+                    f.write(chunk_packet.payload[4:])
         else:
-            raise ValueError(f"expected FILE, got {packet.type.name}")
+            raise ValueError(f"expected TRANSFER_BEGIN, got {begin_packet.type.name}")
     case _:
         raise ValueError("unknown mode")

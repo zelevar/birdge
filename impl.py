@@ -1,18 +1,19 @@
 from dataclasses import dataclass
 from enum import Enum
-from socket import AF_INET, SO_RCVBUF, SO_SNDBUF, SOCK_DGRAM, SOL_SOCKET, socket
+from socket import AF_INET, SOCK_DGRAM, socket
 from typing import Self
 
 Address = tuple[str, int]
 SOURCE_PORT = 2025
-MAX_PACKET_SIZE = 65507
+MAX_PACKET_SIZE = 1472
 TIMEOUT = 30.0
 
 
 class PacketType(Enum):
     CONNECT = 0
     ACCEPT = 1
-    FILE = 2
+    TRANSFER_BEGIN = 2
+    TRANSFER_CHUNK = 3
 
 
 @dataclass
@@ -59,8 +60,6 @@ class Session:
         self.socket = socket(AF_INET, SOCK_DGRAM)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.settimeout(TIMEOUT)
-        self.socket.setsockopt(SOL_SOCKET, SO_SNDBUF, MAX_PACKET_SIZE)
-        self.socket.setsockopt(SOL_SOCKET, SO_RCVBUF, MAX_PACKET_SIZE)
 
     def send_packet(self, packet: Packet) -> None:
         if not self.peer:

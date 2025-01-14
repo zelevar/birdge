@@ -1,4 +1,5 @@
 import base64
+from collections.abc import Iterable, Sequence
 import socket
 
 
@@ -30,3 +31,10 @@ def get_external_address(
 	data, _ = sock.recvfrom(2048)
 	
 	return socket.inet_ntoa(data[28:32]), int.from_bytes(data[26:28], 'big')
+
+
+def chunkify(data: bytes, chunk_size: int) -> list[bytes]:
+	return [
+		data[chunk_position:chunk_position + chunk_size]
+		for chunk_position in range(0, len(data), chunk_size)
+	]
