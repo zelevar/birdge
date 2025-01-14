@@ -25,13 +25,13 @@ class Packet:
     # payload_length: int
     payload: bytes = b''
 
-    @property
-    def payload_length(self) -> int:
-        return len(self.payload)
+    # @property
+    # def payload_length(self) -> int:
+    #     return len(self.payload)
 
     # TODO: find a ready-made lib that would do the following out of the box
     def pack(self) -> bytes:
-        return self.payload_length.to_bytes(1) + self.type.value.to_bytes(1) + self.payload
+        return self.type.value.to_bytes(1) + self.payload
     
     @classmethod
     def unpack(cls, data: bytes) -> Self:
