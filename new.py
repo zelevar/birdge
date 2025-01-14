@@ -1,9 +1,13 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from socket import socket, AF_INET, SOCK_DGRAM
-from typing import Self
+from typing import BinaryIO, Self
 
-from utils import address_to_code, code_to_address, get_external_address, Address
+from exceptions import HandshakeError
+from utils import address_to_code, chunkify, code_to_address, get_external_address, Address
+
+MAX_PACKET_SIZE = 1472
 
 
 class PacketType(Enum):
@@ -52,7 +56,7 @@ class Peer:
         self.socket.sendto(data, self.address)
         
     def _receive(self) -> bytes:
-        data, addr = self.socket.recvfrom(1472)
+        data, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
         if addr != self.address:
             # TODO: log warning
             # FIXME: recursion limit vulnerability
@@ -89,6 +93,31 @@ class Peer:
                 self._establish()
             case PacketType.ACCEPT:
                 self._establish()
+            case _:
+                raise HandshakeError(f"incorrect incoming packet during handshake ({packet.type.name})")
+
+    def send_file(self, file: BinaryIO) -> None:
+        data = file.read()
+        chunks = chunkify(data, MAX_PACKET_SIZE - 4)
+        chunk_count = len(chunks).to_bytes(4)
+
+        peer.send(Packet(PacketType.TRANSFER_BEGIN, chunk_count))
+        for index, chunk_data in enumerate(chunks):
+            chunk_index = index.to_bytes(4)
+            peer.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
+
+    def receive_file(self) -> Iterable[bytes]:
+        initial_packet = self.receive()
+        if initial_packet.type != PacketType.TRANSFER_BEGIN:
+            raise ValueError(f"expected TRANSFER_BEGIN, got {initial_packet.type.name}")
+        
+        chunk_count = int.from_bytes(initial_packet.payload[:4])
+        for _ in range(chunk_count):
+            chunk_packet = self.receive()
+            if chunk_packet.type != PacketType.TRANSFER_CHUNK:
+                raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
+            
+            yield chunk_packet.payload[4:]
         
 
 my_addr = get_external_address()
@@ -100,5 +129,15 @@ peer_addr = code_to_address(peer_code)
 
 peer = Peer(peer_addr)
 print("Connected!")
-packet = peer.receive()
-print(packet)
+
+mode = input("Select mode (recv, send): ")
+match mode:
+    case 'recv':
+        with open(f'{peer_code}.png', 'wb') as f:
+            for chunk in peer.receive_file():
+                f.write(chunk)
+    case 'send':
+        with open('../image.png', 'rb') as f:  # type: ignore[assignment]
+            peer.send_file(f)
+    case _:
+        raise ValueError("unknown mode")
