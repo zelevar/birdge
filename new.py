@@ -46,9 +46,7 @@ class Peer:
         self.socket.bind(('0.0.0.0', 2025))
         self.socket.settimeout(30.0)
 
-        self.send(Packet(PacketType.CONNECT))
-        packet = self.receive()
-        print(packet)
+        self._connect()
 
     def _send(self, data: bytes) -> None:
         self.socket.sendto(data, self.address)
@@ -76,7 +74,21 @@ class Peer:
         ):
             return self.receive()
         
-        return packet        
+        return packet
+    
+    def _establish(self) -> None:
+        self.state = PeerState.CONNECTED
+    
+    def _connect(self) -> None:
+        self.send(Packet(PacketType.CONNECT))
+
+        packet = self.receive()
+        match packet.type:
+            case PacketType.CONNECT:
+                self.send(Packet(PacketType.CONNECT))
+                self._establish()
+            case PacketType.ACCEPT:
+                self._establish()
         
 
 my_addr = get_external_address()
@@ -87,3 +99,5 @@ peer_code = input("Peer's code: ")
 peer_addr = code_to_address(peer_code)
 
 peer = Peer(peer_addr)
+packet = peer.receive()
+print(packet)
