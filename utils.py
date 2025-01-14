@@ -22,7 +22,7 @@ def code_to_address(code: str) -> tuple[str, int]:
 
 def get_external_address(
 	*,
-	timeout: int = 30.0,
+	timeout: float = 30.0,
 	source_host: str = '0.0.0.0',
 	source_port: int = 2025,
 	stun_host: str = 'stun.ekiga.net',

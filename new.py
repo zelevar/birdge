@@ -1,11 +1,16 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import AF_INET, SOCK_DGRAM, socket
 from typing import BinaryIO, Self
 
 from exceptions import HandshakeError
-from utils import address_to_code, chunkify, code_to_address, get_external_address, Address
+from utils import (
+    Address,
+    address_to_code,
+    chunkify,
+    code_to_address,
+    get_external_address,
+)
 
 MAX_PACKET_SIZE = 1472
 
@@ -106,18 +111,23 @@ class Peer:
             chunk_index = index.to_bytes(4)
             peer.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
 
-    def receive_file(self) -> Iterable[bytes]:
+    def receive_file(self) -> dict[int, bytes]:
         initial_packet = self.receive()
         if initial_packet.type != PacketType.TRANSFER_BEGIN:
             raise ValueError(f"expected TRANSFER_BEGIN, got {initial_packet.type.name}")
         
+        chunks = {}
         chunk_count = int.from_bytes(initial_packet.payload[:4])
         for _ in range(chunk_count):
             chunk_packet = self.receive()
             if chunk_packet.type != PacketType.TRANSFER_CHUNK:
                 raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
             
-            yield chunk_packet.payload[4:]
+            chunk_index = int.from_bytes(chunk_packet.payload[:4])
+            chunk_data = chunk_packet.payload[4:]
+            chunks[chunk_index] = chunk_data
+        
+        return chunks
         
 
 my_addr = get_external_address()
@@ -133,9 +143,11 @@ print("Connected!")
 mode = input("Select mode (recv, send): ")
 match mode:
     case 'recv':
-        with open(f'{peer_code}.png', 'wb') as f:
-            for chunk in peer.receive_file():
-                f.write(chunk)
+        # with open(f'{peer_code}.png', 'wb') as f:
+        #     ...
+
+        chunks = peer.receive_file()
+        print(chunks[0])
     case 'send':
         with open('../image.png', 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)
