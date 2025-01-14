@@ -13,7 +13,7 @@ from utils import (
     get_external_address,
 )
 
-MAX_PACKET_SIZE = 1472
+MAX_PACKET_SIZE = 1024  # 1472
 
 
 class PacketType(Enum):
