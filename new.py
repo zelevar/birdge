@@ -143,11 +143,10 @@ print("Connected!")
 mode = input("Select mode (recv, send): ")
 match mode:
     case 'recv':
-        # with open(f'{peer_code}.png', 'wb') as f:
-        #     ...
-
         chunks = peer.receive_file()
-        print(chunks[0])
+        with open(f'{peer_code}.png', 'wb') as f:
+            for chunk_index in sorted(chunks.keys()):
+                f.write(chunks[chunk_index])
     case 'send':
         with open('../image.png', 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)
