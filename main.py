@@ -20,11 +20,12 @@ match mode:
         # session.send_packet(Packet(PacketType.FILE, b"p"*10100))
         with open('../image.png', 'rb') as f:
             # TODO: read only part of file (because it can be larger than available RAM) 
-            payload = f.read()  
+            payload = f.read()
+            print(payload)
 
         chunks = chunkify(payload, 1468)
         chunk_count = len(chunks).to_bytes(4)
-        session.send_packet(Packet(PacketType.TRANSFER_BEGIN, ))
+        session.send_packet(Packet(PacketType.TRANSFER_BEGIN, chunk_count))
 
         # TODO: make it asynchronous
         for chunk_index, chunk in enumerate(chunks):
@@ -40,6 +41,7 @@ match mode:
                 # FIXME: chunk sequence isn't checked (and it's unneccessary when you're working with sync send)
                 for _ in range(chunk_count):
                     chunk_packet = session.receive_packet()
+                    print(chunk_packet.type, chunk_packet.payload)
                     if chunk_packet.type != PacketType.TRANSFER_CHUNK:
                         raise Exception(f'got {chunk_packet.type} while transfering chunks')
                     f.write(chunk_packet.payload[4:])

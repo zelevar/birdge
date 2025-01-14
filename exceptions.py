@@ -1,0 +1,6 @@
+class MissingPeerError(Exception):
+    ...
+
+
+class HandshakeError(Exception):
+    ...
