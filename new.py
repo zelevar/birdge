@@ -53,24 +53,20 @@ class Peer:
     def _send(self, data: bytes) -> None:
         self.socket.sendto(data, self.address)
         
-    def _receive(self, length: int) -> bytes:
-        data, addr = self.socket.recvfrom(length)
+    def _receive(self) -> bytes:
+        data, addr = self.socket.recvfrom(1472)
         if addr != self.address:
             # TODO: log warning
             # FIXME: recursion limit vulnerability
-            return self._receive(length)
+            return self._receive()
 
         return data
 
     def send(self, packet: Packet) -> None:
-        data = packet.pack()
-        length = len(data).to_bytes(1)
-        self._send(length + data)
+        self._send(packet.pack())
 
     def receive(self) -> Packet:
-        length = int.from_bytes(self._receive(1))
-        data = self._receive(length)
-
+        data = self._receive()
         packet = Packet.unpack(data)
         
         # happens when NAT is already open so ACCEPT packets end up on both sides
