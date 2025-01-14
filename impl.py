@@ -80,6 +80,7 @@ class Session:
         data, addr = self.socket.recvfrom(length)
         if addr != self.peer:
             # TODO: log warning
+            print("warning")
             # FIXME: recursion limit vulnerability
             return self._receive_bytes(length)
         
