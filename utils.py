@@ -1,6 +1,8 @@
 import base64
 import socket
 
+Address = tuple[str, int]
+
 
 def parse_address(addr: str) -> tuple[str, int]:
 	ip, port = addr.split(':', 1)
@@ -19,15 +21,26 @@ def code_to_address(code: str) -> tuple[str, int]:
 
 
 def get_external_address(
-	sock: socket.socket, stun_host: str = 'stun.ekiga.net'
+	*,
+	timeout: int = 30.0,
+	source_host: str = '0.0.0.0',
+	source_port: int = 2025,
+	stun_host: str = 'stun.ekiga.net',
+	stun_port: int = 3478
 ) -> tuple[str, int]:
-	stun_addr = (socket.gethostbyname(stun_host), 3478)
+	source_addr = (socket.gethostbyname(source_host), source_port)
+	stun_addr = (socket.gethostbyname(stun_host), stun_port)
+
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.settimeout(timeout)
+	sock.bind(source_addr)
 	
 	sock.sendto(
 		b"\x00\x01\x00\x00!\x12\xa4B\xd6\x85y\xb8\x11\x030\x06xi\xdfB",
 		stun_addr
 	)
 	data, _ = sock.recvfrom(2048)
+	sock.close()
 	
 	return socket.inet_ntoa(data[28:32]), int.from_bytes(data[26:28], 'big')
 
