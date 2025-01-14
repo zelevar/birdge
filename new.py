@@ -148,15 +148,16 @@ mode = input("Select mode (recv, send): ")
 match mode:
     case 'recv':
         chunks = peer.receive_file()
+        print("Chunk count:", len(chunks))
         for chunk_index in sorted(chunks.keys()):
             original_checksum, chunk_data = chunks[chunk_index]
             current_checksum = hashlib.md5(chunk_data).digest()
             if original_checksum != current_checksum:
                 print(f"{chunk_index} — checksum mismatch")
         # print("Missing chunks:", set(range()) ^ set(chunks.keys()))
-        # with open(f'{peer_code}.png', 'wb') as f:
-        #     for chunk_index in sorted(chunks.keys()):
-        #         f.write(chunks[chunk_index])
+        with open(f'{peer_code}.png', 'wb') as f:
+            for chunk_index in sorted(chunks.keys()):
+                f.write(chunks[chunk_index][1])
     case 'send':
         with open('../image.png', 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)
