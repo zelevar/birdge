@@ -10,9 +10,11 @@ from utils import (
     chunkify,
     code_to_address,
     get_external_address,
+    save_chunk,
 )
 
-MAX_PACKET_SIZE = 512  # 1472
+MAX_PACKET_SIZE = 1472
+MAX_CHUNK_SIZE = MAX_PACKET_SIZE - 4
 
 
 class PacketType(Enum):
@@ -103,31 +105,41 @@ class Peer:
 
     def send_file(self, file: BinaryIO) -> None:
         data = file.read()
-        chunks = chunkify(data, MAX_PACKET_SIZE - 4)
+        chunks = chunkify(data, MAX_CHUNK_SIZE)
         chunk_count = len(chunks).to_bytes(4)
+        
+        filename = file.name.replace('\\', '/').split('/')[-1] or 'unknown'
 
-        self.send(Packet(PacketType.TRANSFER_BEGIN, chunk_count))
+        self.send(Packet(PacketType.TRANSFER_BEGIN, chunk_count + filename[:256].encode()))
         for index, chunk_data in enumerate(chunks):
             chunk_index = index.to_bytes(4)
             self.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
 
-    def receive_file(self) -> dict[int, bytes]:
+    def receive_file(self) -> BinaryIO:
         initial_packet = self.receive()
         if initial_packet.type != PacketType.TRANSFER_BEGIN:
             raise ValueError(f"expected TRANSFER_BEGIN, got {initial_packet.type.name}")
         
-        chunks = {}
         chunk_count = int.from_bytes(initial_packet.payload[:4])
-        for _ in range(chunk_count):
-            chunk_packet = self.receive()
-            if chunk_packet.type != PacketType.TRANSFER_CHUNK:
-                raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
-            
-            chunk_index = int.from_bytes(chunk_packet.payload[:4])
-            chunk_data = chunk_packet.payload[4:]
-            chunks[chunk_index] = chunk_data
+        file_name = str(initial_packet.payload[4:260])
+        file_size = chunk_count * MAX_CHUNK_SIZE
+
+        print(f"Receiving file `{file_name}` ({(file_size // 1024 // 1024):6f} MiB)")
+
+        with open(file_name, 'w+b') as f:
+            f.truncate(file_size)
+
+            for _ in range(chunk_count):
+                chunk_packet = self.receive()
+                if chunk_packet.type != PacketType.TRANSFER_CHUNK:
+                    raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
+                
+                chunk_index = int.from_bytes(chunk_packet.payload[:4])
+                chunk_data = chunk_packet.payload[4:]
+                
+                save_chunk(f, chunk_index, MAX_CHUNK_SIZE, chunk_data)
         
-        return chunks
+        return f
         
 
 my_addr = get_external_address()
@@ -143,12 +155,13 @@ print("Connected!")
 mode = input("Select mode (recv, send): ")
 match mode:
     case 'recv':
-        chunks = peer.receive_file()
-        print("Chunk count:", len(chunks))
-        print("List:", ', '.join(map(str, chunks.keys())))
-        with open(f'{peer_code}.png', 'wb') as f:
-            for chunk_index in sorted(chunks.keys()):
-                f.write(chunks[chunk_index])
+        file = peer.receive_file()
+        # print(f"Received file: {file.name}")
+        # print("Chunk count:", len(chunks))
+        # print("List:", ', '.join(map(str, chunks.keys())))
+        # with open(f'{peer_code}.png', 'wb') as f:
+        #     for chunk_index in sorted(chunks.keys()):
+        #         f.write(chunks[chunk_index])
     case 'send':
         with open('../image.png', 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)

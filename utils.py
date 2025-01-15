@@ -1,5 +1,6 @@
 import base64
 import socket
+from typing import BinaryIO
 
 Address = tuple[str, int]
 
@@ -24,7 +25,7 @@ def get_external_address(
 	*,
 	timeout: float = 30.0,
 	source_host: str = '0.0.0.0',
-	source_port: int = 2025,
+	source_port: int = 2025,  # TODO: remove this default
 	stun_host: str = 'stun.ekiga.net',
 	stun_port: int = 3478
 ) -> tuple[str, int]:
@@ -50,3 +51,13 @@ def chunkify(data: bytes, chunk_size: int) -> list[bytes]:
 		data[chunk_position:chunk_position + chunk_size]
 		for chunk_position in range(0, len(data), chunk_size)
 	]
+
+
+def save_chunk(
+	file: BinaryIO,
+	chunk_index: int,
+	chunk_size: int,
+	chunk_data: bytes
+) -> None:
+    file.seek(chunk_index * chunk_size)
+    file.write(chunk_data)
