@@ -9,7 +9,7 @@ from exceptions import HandshakeError
 from utils import (
     Address,
     address_to_code,
-    chunkify,
+    chunkify_file,
     code_to_address,
     get_external_address,
     save_chunk,
@@ -106,8 +106,7 @@ class Peer:
                 raise HandshakeError(f"incorrect incoming packet during handshake ({packet.type.name})")
 
     def send_file(self, file: BinaryIO) -> None:
-        data = file.read()
-        chunks = chunkify(data, MAX_CHUNK_SIZE)
+        chunks = chunkify_file(file, MAX_CHUNK_SIZE)
         # round up
         chunk_count = math.ceil(os.stat(file.name).st_size / MAX_CHUNK_SIZE)
         
@@ -117,6 +116,7 @@ class Peer:
             PacketType.TRANSFER_BEGIN,
             chunk_count.to_bytes(4) + filename[:256].encode()
         ))
+        print("Transfer started!")
         for index, chunk_data in enumerate(chunks):
             chunk_index = index.to_bytes(4)
             self.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
@@ -130,7 +130,7 @@ class Peer:
         file_name = initial_packet.payload[4:260].decode()
         file_size = chunk_count * MAX_CHUNK_SIZE
 
-        print(f"Receiving file `{file_name}` ({(file_size / 1024 / 1024)} MiB)")
+        print(f"Receiving file `{file_name}` ({(file_size / 1024 / 1024):6f} MiB)")
         received_chunk_count = 0
 
         with open(file_name, 'w+b') as f:
@@ -147,8 +147,10 @@ class Peer:
                 save_chunk(f, chunk_index, MAX_CHUNK_SIZE, chunk_data)
 
                 received_chunk_count += 1
+                print(received_chunk_count)
                 progress = round((received_chunk_count / chunk_count) * 100)
-                if progress % 10 == 0:
+                print(progress)
+                if progress % 5 == 0:
                     print(f"Progress: {progress}%")
         
         return f
@@ -169,7 +171,7 @@ match mode:
     case 'recv':
         file = peer.receive_file()
     case 'send':
-        with open('../image.png', 'rb') as f:  # type: ignore[assignment]
+        with open("../Teardown 2024-08-07.zip", 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)
     case _:
         raise ValueError("unknown mode")

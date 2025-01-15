@@ -47,11 +47,16 @@ def get_external_address(
 	return socket.inet_ntoa(data[28:32]), int.from_bytes(data[26:28], 'big')
 
 
-def chunkify(data: bytes, chunk_size: int) -> Iterable[bytes]:
-	return (
-		data[chunk_position:chunk_position + chunk_size]
-		for chunk_position in range(0, len(data), chunk_size)
-	)
+# def chunkify(data: bytes, chunk_size: int) -> Iterable[bytes]:
+# 	return (
+# 		data[chunk_position:chunk_position + chunk_size]
+# 		for chunk_position in range(0, len(data), chunk_size)
+# 	)
+
+
+def chunkify_file(file: BinaryIO, chunk_size: int) -> Iterable[bytes]:
+	while chunk := file.read(chunk_size):
+		yield chunk
 
 
 def save_chunk(
