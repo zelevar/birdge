@@ -146,6 +146,7 @@ match mode:
     case 'recv':
         chunks = peer.receive_file()
         print("Chunk count:", len(chunks))
+        print("List:", ', '.join(map(str, chunks.keys())))
         # for chunk_index in sorted(chunks.keys()):
         #     original_checksum, chunk_data = chunks[chunk_index]
         #     current_checksum = hashlib.md5(chunk_data).digest()
