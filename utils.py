@@ -1,5 +1,6 @@
 import base64
 import socket
+from collections.abc import Iterable
 from typing import BinaryIO
 
 Address = tuple[str, int]
@@ -46,11 +47,11 @@ def get_external_address(
 	return socket.inet_ntoa(data[28:32]), int.from_bytes(data[26:28], 'big')
 
 
-def chunkify(data: bytes, chunk_size: int) -> list[bytes]:
-	return [
+def chunkify(data: bytes, chunk_size: int) -> Iterable[bytes]:
+	return (
 		data[chunk_position:chunk_position + chunk_size]
 		for chunk_position in range(0, len(data), chunk_size)
-	]
+	)
 
 
 def save_chunk(

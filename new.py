@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from enum import Enum
 from socket import AF_INET, SOCK_DGRAM, socket
@@ -106,7 +107,7 @@ class Peer:
     def send_file(self, file: BinaryIO) -> None:
         data = file.read()
         chunks = chunkify(data, MAX_CHUNK_SIZE)
-        chunk_count = len(chunks).to_bytes(4)
+        chunk_count = os.stat(file.name).st_size.to_bytes(4)
         
         filename = file.name.replace('\\', '/').split('/')[-1] or 'unknown'
 
@@ -121,10 +122,10 @@ class Peer:
             raise ValueError(f"expected TRANSFER_BEGIN, got {initial_packet.type.name}")
         
         chunk_count = int.from_bytes(initial_packet.payload[:4])
-        file_name = str(initial_packet.payload[4:260])
+        file_name = initial_packet.payload[4:260].decode()
         file_size = chunk_count * MAX_CHUNK_SIZE
 
-        print(f"Receiving file `{file_name}` ({(file_size // 1024 // 1024):6f} MiB)")
+        print(f"Receiving file `{file_name}` ({(file_size // 1024 // 1024)} MiB)")
 
         with open(file_name, 'w+b') as f:
             f.truncate(file_size)
@@ -156,12 +157,6 @@ mode = input("Select mode (recv, send): ")
 match mode:
     case 'recv':
         file = peer.receive_file()
-        # print(f"Received file: {file.name}")
-        # print("Chunk count:", len(chunks))
-        # print("List:", ', '.join(map(str, chunks.keys())))
-        # with open(f'{peer_code}.png', 'wb') as f:
-        #     for chunk_index in sorted(chunks.keys()):
-        #         f.write(chunks[chunk_index])
     case 'send':
         with open('../image.png', 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)
