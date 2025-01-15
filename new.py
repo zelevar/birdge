@@ -148,8 +148,7 @@ class Peer:
 
                 received_chunk_count += 1
                 progress = round((received_chunk_count / chunk_count) * 100)
-                print(progress, chunk_count)
-                if progress % 5 == 0:
+                if progress != 0 and progress % 5 == 0:
                     print(f"Progress: {progress}%")
         
         return f
