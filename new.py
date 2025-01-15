@@ -124,7 +124,7 @@ class Peer:
                 raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
             
             chunk_index = int.from_bytes(chunk_packet.payload[:4])
-            chunk_data = chunk_packet.payload[20:]
+            chunk_data = chunk_packet.payload[4:]
             chunks[chunk_index] = chunk_data
         
         return chunks
