@@ -131,9 +131,8 @@ class Peer:
         #     async for chunk_data in chunkify_file(file, MAX_CHUNK_SIZE)
         # ))
         async for chunk_data in chunkify_file(file, MAX_CHUNK_SIZE):
-            chunk_index += 1
-            print(chunk_index, chunk_data)
             await self._send_chunk(chunk_index, chunk_data)
+            chunk_index += 1
     
     async def _receive_chunk(self, file: AsyncBufferedReader) -> None:
         chunk_packet = await self.receive()
@@ -142,8 +141,6 @@ class Peer:
         
         chunk_index = int.from_bytes(chunk_packet.payload[:4])
         chunk_data = chunk_packet.payload[4:]
-
-        print(chunk_index, chunk_data)
         
         await save_chunk(file, chunk_index, MAX_CHUNK_SIZE, chunk_data)
 

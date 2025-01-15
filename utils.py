@@ -72,6 +72,6 @@ async def save_chunk(
 	chunk_size: int,
 	chunk_data: bytes
 ) -> None:
-	async with file_lock:
-		await file.seek(chunk_index * chunk_size)
-		await file.write(chunk_data)
+	# async with file_lock:
+	await file.seek(chunk_index * chunk_size)
+	await file.write(chunk_data)
