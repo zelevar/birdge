@@ -1,7 +1,8 @@
 import base64
 import socket
-from collections.abc import Iterable
-from typing import BinaryIO
+from collections.abc import AsyncGenerator
+
+from aiofiles.threadpool.binary import AsyncBufferedReader
 
 Address = tuple[str, int]
 
@@ -54,16 +55,19 @@ def get_external_address(
 # 	)
 
 
-def chunkify_file(file: BinaryIO, chunk_size: int) -> Iterable[bytes]:
-	while chunk := file.read(chunk_size):
+async def chunkify_file(
+	file: AsyncBufferedReader,
+	chunk_size: int
+) -> AsyncGenerator[bytes]:
+	while chunk := await file.read(chunk_size):
 		yield chunk
 
 
-def save_chunk(
-	file: BinaryIO,
+async def save_chunk(
+	file: AsyncBufferedReader,
 	chunk_index: int,
 	chunk_size: int,
 	chunk_data: bytes
 ) -> None:
-    file.seek(chunk_index * chunk_size)
-    file.write(chunk_data)
+    await file.seek(chunk_index * chunk_size)
+    await file.write(chunk_data)

@@ -1,0 +1,2 @@
+aiofiles
+types-aiofiles (dev)
