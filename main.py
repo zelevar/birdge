@@ -1,51 +1,124 @@
-from impl import Packet, PacketType, Session
-from utils import address_to_code, chunkify, code_to_address, get_external_address
+from asyncio import AbstractEventLoop, DatagramTransport
+import asyncio
+from dataclasses import dataclass
+from enum import Enum
+from typing import Self
 
-session = Session()
+from exceptions import HandshakeError
+from protocol import PeerProtocol
+from utils import Address, address_to_code, code_to_address, get_external_address
 
-my_addr = get_external_address(session.socket)
-my_code = address_to_code(my_addr)
-print(f"Your code: {my_code}")
 
-peer_code = input("Peer's code: ")
-peer_addr = code_to_address(peer_code)
+MAX_PACKET_SIZE = 1472
+MAX_CHUNK_SIZE = MAX_PACKET_SIZE - 4
 
-session.connect(peer_addr)
-print("Connected!")
 
-mode = input("Select mode (send/recv): ")
-match mode:
-    case 'send':
-        # session.send_packet(Packet(PacketType.CONNECT))
-        # session.send_packet(Packet(PacketType.FILE, b"p"*10100))
-        with open('../image.png', 'rb') as f:
-            # TODO: read only part of file (because it can be larger than available RAM) 
-            payload = f.read()
-            print(payload)
+class PacketType(Enum):
+    CONNECT = 0
+    ACCEPT = 1
+    TRANSFER_BEGIN = 2
+    TRANSFER_CHUNK = 3
 
-        chunks = chunkify(payload, 1468)
-        chunk_count = len(chunks).to_bytes(4)
-        session.send_packet(Packet(PacketType.TRANSFER_BEGIN, chunk_count))
 
-        # TODO: make it asynchronous
-        for chunk_index, chunk in enumerate(chunks):
-            payload = chunk_index.to_bytes(4) + chunk
-            session.send_packet(Packet(PacketType.TRANSFER_CHUNK, payload))
-    case 'recv':
-        begin_packet = session.receive_packet()
-        if begin_packet.type == PacketType.TRANSFER_BEGIN:
-            # FIXME: conflict with prev (match)case block - move to the function
-            chunk_count: int = int.from_bytes(begin_packet.payload[:4])  # type: ignore
+@dataclass
+class Packet:
+    type: PacketType
+    payload: bytes = b''
 
-            with open(f'{peer_code}.png', 'wb') as f:
-                # FIXME: chunk sequence isn't checked (and it's unneccessary when you're working with sync send)
-                for _ in range(chunk_count):
-                    chunk_packet = session.receive_packet()
-                    print(chunk_packet.type, chunk_packet.payload)
-                    if chunk_packet.type != PacketType.TRANSFER_CHUNK:
-                        raise Exception(f'got {chunk_packet.type} while transfering chunks')
-                    f.write(chunk_packet.payload[4:])
-        else:
-            raise ValueError(f"expected TRANSFER_BEGIN, got {begin_packet.type.name}")
-    case _:
-        raise ValueError("unknown mode")
+    def pack(self) -> bytes:
+        return self.type.value.to_bytes(1) + self.payload
+    
+    @classmethod
+    def unpack(cls, data: bytes) -> Self:
+        type = PacketType(int.from_bytes(data[:1]))
+        payload = data[1:]
+
+        return cls(type, payload)
+    
+
+class PeerState(Enum):
+    DISCONNECTED = 0
+    CONNECTED = 1
+    TRANSFER_BEGIN = 2
+    TRANSFER_CHUNK = 3
+
+
+class Peer:
+    state: PeerState = PeerState.DISCONNECTED
+
+    def __init__(
+        self,
+        transport: DatagramTransport,
+        protocol: PeerProtocol
+    ) -> None:
+        self.transport = transport
+        self.protocol = protocol
+
+    async def send(self, packet: Packet) -> None:
+        self.transport.sendto(packet.pack())
+
+    async def receive(self) -> Packet:
+        packet = Packet.unpack(self.protocol.recvfrom())
+
+        # happens when NAT is already open so ACCEPT packets end up on both sides
+        if (
+            packet.type == PacketType.ACCEPT
+            and self.state == PeerState.CONNECTED
+        ):
+            return await self.receive()
+        
+        return packet
+    
+    def _establish(self) -> None:
+        self.state = PeerState.CONNECTED
+
+    @classmethod
+    async def connect(
+        cls,
+        address: Address,
+        loop: AbstractEventLoop | None = None
+    ) -> Self:
+        loop = loop or asyncio.get_running_loop()
+        transport, protocol = await loop.create_datagram_endpoint(
+            PeerProtocol, ('0.0.0.0', 2025), address
+        )
+
+        peer = cls(transport, protocol)
+        await peer.send(Packet(PacketType.CONNECT))
+
+        packet = await peer.receive()
+        match packet.type:
+            case PacketType.CONNECT:
+                await peer.send(Packet(PacketType.ACCEPT))
+                peer._establish()
+            case PacketType.ACCEPT:
+                peer._establish()
+            case _:
+                raise HandshakeError(f"incorrect incoming packet during handshake ({packet.type.name})")
+
+        return peer
+
+
+async def main():
+    my_addr = get_external_address()  # ! synchronous I/O
+    my_code = address_to_code(my_addr)
+    print(f"Your code: {my_code}")
+
+    peer_code = input("Peer's code: ")
+    peer_addr = code_to_address(peer_code)
+
+    peer = await Peer.connect(peer_addr)
+    print("Connected!")
+
+    mode = input("Select mode (recv, send): ")
+    match mode:
+        case 'recv':
+            peer.receive_file()
+        case 'send':
+            with open("../Teardown 2024-08-07.zip", 'rb') as f:  # type: ignore[assignment]
+                peer.send_file(f)
+        case _:
+            raise ValueError("unknown mode")
+    
+
+asyncio.run(main())
