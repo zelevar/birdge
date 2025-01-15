@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-import hashlib
 from socket import AF_INET, SOCK_DGRAM, socket
 from typing import BinaryIO, Self
 
@@ -13,7 +12,7 @@ from utils import (
     get_external_address,
 )
 
-MAX_PACKET_SIZE = 1024  # 1472
+MAX_PACKET_SIZE = 512  # 1472
 
 
 class PacketType(Enum):
@@ -104,15 +103,13 @@ class Peer:
 
     def send_file(self, file: BinaryIO) -> None:
         data = file.read()
-        chunks = chunkify(data, MAX_PACKET_SIZE - 4 - 16)
+        chunks = chunkify(data, MAX_PACKET_SIZE - 4)
         chunk_count = len(chunks).to_bytes(4)
 
-        peer.send(Packet(PacketType.TRANSFER_BEGIN, chunk_count))
+        self.send(Packet(PacketType.TRANSFER_BEGIN, chunk_count))
         for index, chunk_data in enumerate(chunks):
             chunk_index = index.to_bytes(4)
-            chunk_checksum = hashlib.md5(chunk_data).digest()
-            
-            peer.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_checksum + chunk_data))
+            self.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
 
     def receive_file(self) -> dict[int, tuple[bytes, bytes]]:
         initial_packet = self.receive()
@@ -149,11 +146,11 @@ match mode:
     case 'recv':
         chunks = peer.receive_file()
         print("Chunk count:", len(chunks))
-        for chunk_index in sorted(chunks.keys()):
-            original_checksum, chunk_data = chunks[chunk_index]
-            current_checksum = hashlib.md5(chunk_data).digest()
-            if original_checksum != current_checksum:
-                print(f"{chunk_index} — checksum mismatch")
+        # for chunk_index in sorted(chunks.keys()):
+        #     original_checksum, chunk_data = chunks[chunk_index]
+        #     current_checksum = hashlib.md5(chunk_data).digest()
+        #     if original_checksum != current_checksum:
+        #         print(f"{chunk_index} — checksum mismatch")
         # print("Missing chunks:", set(range()) ^ set(chunks.keys()))
         with open(f'{peer_code}.png', 'wb') as f:
             for chunk_index in sorted(chunks.keys()):
