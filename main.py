@@ -157,6 +157,7 @@ class Peer:
 
         async with aiofiles.open(file_name, 'w+b') as f:
             await f.truncate(file_size)
+            await asyncio.sleep(3)
             await asyncio.gather(*(self._receive_chunk(f) for _ in range(chunk_count)))
         
         return f
