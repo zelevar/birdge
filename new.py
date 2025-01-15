@@ -61,7 +61,7 @@ class Peer:
         self.socket.sendto(data, self.address)
         
     def _receive(self) -> bytes:
-        data, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
+        data, addr = self.socket.recvfrom(65507)
         if addr != self.address:
             # TODO: log warning
             # FIXME: recursion limit vulnerability
@@ -111,7 +111,7 @@ class Peer:
             chunk_index = index.to_bytes(4)
             self.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
 
-    def receive_file(self) -> dict[int, tuple[bytes, bytes]]:
+    def receive_file(self) -> dict[int, bytes]:
         initial_packet = self.receive()
         if initial_packet.type != PacketType.TRANSFER_BEGIN:
             raise ValueError(f"expected TRANSFER_BEGIN, got {initial_packet.type.name}")
@@ -124,9 +124,8 @@ class Peer:
                 raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
             
             chunk_index = int.from_bytes(chunk_packet.payload[:4])
-            chunk_checksum = chunk_packet.payload[4:20]
             chunk_data = chunk_packet.payload[20:]
-            chunks[chunk_index] = (chunk_checksum, chunk_data)
+            chunks[chunk_index] = chunk_data
         
         return chunks
         
@@ -147,15 +146,9 @@ match mode:
         chunks = peer.receive_file()
         print("Chunk count:", len(chunks))
         print("List:", ', '.join(map(str, chunks.keys())))
-        # for chunk_index in sorted(chunks.keys()):
-        #     original_checksum, chunk_data = chunks[chunk_index]
-        #     current_checksum = hashlib.md5(chunk_data).digest()
-        #     if original_checksum != current_checksum:
-        #         print(f"{chunk_index} — checksum mismatch")
-        # print("Missing chunks:", set(range()) ^ set(chunks.keys()))
         with open(f'{peer_code}.png', 'wb') as f:
             for chunk_index in sorted(chunks.keys()):
-                f.write(chunks[chunk_index][1])
+                f.write(chunks[chunk_index])
     case 'send':
         with open('../image.png', 'rb') as f:  # type: ignore[assignment]
             peer.send_file(f)
