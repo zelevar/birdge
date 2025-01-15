@@ -1,3 +1,4 @@
+import math
 import os
 from dataclasses import dataclass
 from enum import Enum
@@ -107,11 +108,15 @@ class Peer:
     def send_file(self, file: BinaryIO) -> None:
         data = file.read()
         chunks = chunkify(data, MAX_CHUNK_SIZE)
-        chunk_count = os.stat(file.name).st_size.to_bytes(4)
+        # round up
+        chunk_count = math.ceil(os.stat(file.name).st_size / MAX_CHUNK_SIZE)
         
         filename = file.name.replace('\\', '/').split('/')[-1] or 'unknown'
 
-        self.send(Packet(PacketType.TRANSFER_BEGIN, chunk_count + filename[:256].encode()))
+        self.send(Packet(
+            PacketType.TRANSFER_BEGIN,
+            chunk_count.to_bytes(4) + filename[:256].encode()
+        ))
         for index, chunk_data in enumerate(chunks):
             chunk_index = index.to_bytes(4)
             self.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
@@ -125,7 +130,7 @@ class Peer:
         file_name = initial_packet.payload[4:260].decode()
         file_size = chunk_count * MAX_CHUNK_SIZE
 
-        print(f"Receiving file `{file_name}` ({(file_size // 1024 // 1024)} MiB)")
+        print(f"Receiving file `{file_name}` ({(file_size / 1024 / 1024)} MiB)")
         received_chunk_count = 0
 
         with open(file_name, 'w+b') as f:
@@ -144,7 +149,7 @@ class Peer:
                 received_chunk_count += 1
                 progress = round((received_chunk_count / chunk_count) * 100)
                 if progress % 10 == 0:
-                    print(f"Progress: {progress}")
+                    print(f"Progress: {progress}%")
         
         return f
         
