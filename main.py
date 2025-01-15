@@ -173,10 +173,10 @@ async def main():
     mode = input("Select mode (recv, send): ")
     match mode:
         case 'recv':
-            peer.receive_file()
+            await peer.receive_file()
         case 'send':
             async with aiofiles.open("../Teardown 2024-08-07.zip", 'rb') as f:  # type: ignore[assignment]
-                peer.send_file(f)
+                await peer.send_file(f)
         case _:
             raise ValueError("unknown mode")
     
