@@ -142,6 +142,8 @@ class Peer:
         
         chunk_index = int.from_bytes(chunk_packet.payload[:4])
         chunk_data = chunk_packet.payload[4:]
+
+        print(chunk_index, chunk_data)
         
         await save_chunk(file, chunk_index, MAX_CHUNK_SIZE, chunk_data)
 
