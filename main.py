@@ -30,6 +30,7 @@ class Packet:
     
     @classmethod
     def unpack(cls, data: bytes) -> Self:
+        print("PacketType opcode:", data[:1])
         type = PacketType(int.from_bytes(data[:1]))
         payload = data[1:]
 
