@@ -58,7 +58,8 @@ class Peer:
         self.transport.sendto(packet.pack())
 
     async def receive(self) -> Packet:
-        packet = Packet.unpack(self.protocol.recvfrom())
+        data = await self.protocol.recvfrom()
+        packet = Packet.unpack(data)
 
         # happens when NAT is already open so ACCEPT packets end up on both sides
         if (
