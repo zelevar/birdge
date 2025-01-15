@@ -126,6 +126,7 @@ class Peer:
         file_size = chunk_count * MAX_CHUNK_SIZE
 
         print(f"Receiving file `{file_name}` ({(file_size // 1024 // 1024)} MiB)")
+        received_chunk_count = 0
 
         with open(file_name, 'w+b') as f:
             f.truncate(file_size)
@@ -139,6 +140,11 @@ class Peer:
                 chunk_data = chunk_packet.payload[4:]
                 
                 save_chunk(f, chunk_index, MAX_CHUNK_SIZE, chunk_data)
+
+                received_chunk_count += 1
+                progress = round((received_chunk_count / chunk_count) * 100)
+                if progress % 10 == 0:
+                    print(f"Progress: {progress}")
         
         return f
         
