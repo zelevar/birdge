@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import socket
 from collections.abc import AsyncGenerator
@@ -5,6 +6,8 @@ from collections.abc import AsyncGenerator
 from aiofiles.threadpool.binary import AsyncBufferedReader
 
 Address = tuple[str, int]
+
+file_lock = asyncio.Lock()
 
 
 def parse_address(addr: str) -> tuple[str, int]:
@@ -69,5 +72,6 @@ async def save_chunk(
 	chunk_size: int,
 	chunk_data: bytes
 ) -> None:
-    await file.seek(chunk_index * chunk_size)
-    await file.write(chunk_data)
+	async with file_lock:
+		await file.seek(chunk_index * chunk_size)
+		await file.write(chunk_data)

@@ -126,8 +126,13 @@ class Peer:
         print("Transfer started!")
 
         chunk_index = 0
+        # await asyncio.gather(*(
+        #     self._send_chunk(chunk)
+        #     async for chunk_data in chunkify_file(file, MAX_CHUNK_SIZE)
+        # ))
         async for chunk_data in chunkify_file(file, MAX_CHUNK_SIZE):
             chunk_index += 1
+            print(chunk_index, chunk_data)
             await self._send_chunk(chunk_index, chunk_data)
     
     async def _receive_chunk(self, file: AsyncBufferedReader) -> None:
