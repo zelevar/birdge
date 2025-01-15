@@ -147,9 +147,8 @@ class Peer:
                 save_chunk(f, chunk_index, MAX_CHUNK_SIZE, chunk_data)
 
                 received_chunk_count += 1
-                print(received_chunk_count)
                 progress = round((received_chunk_count / chunk_count) * 100)
-                print(progress)
+                print(progress, chunk_count)
                 if progress % 5 == 0:
                     print(f"Progress: {progress}%")
         
