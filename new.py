@@ -130,7 +130,7 @@ class Peer:
         file_name = initial_packet.payload[4:260].decode()
         file_size = chunk_count * MAX_CHUNK_SIZE
 
-        print(f"Receiving file `{file_name}` ({(file_size / 1024 / 1024):6f} MiB)")
+        print(f"Receiving file `{file_name}` ({chunk_count} chunks, {round(file_size / 1024 / 1024)} MiB)")
         received_chunk_count = 0
 
         with open(file_name, 'w+b') as f:
