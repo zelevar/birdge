@@ -107,6 +107,12 @@ class Peer:
         
         return packet
     
+    async def _send_chunk(self, chunk_index: int, chunk_data: bytes) -> None:
+        await self.send(Packet(
+            PacketType.TRANSFER_CHUNK,
+            chunk_index.to_bytes(4) + chunk_data
+        ))
+    
     async def send_file(self, file: AsyncBufferedReader) -> None:
         # round up
         chunk_count = math.ceil(os.stat(file.name).st_size / MAX_CHUNK_SIZE)
@@ -119,12 +125,20 @@ class Peer:
         ))
         print("Transfer started!")
 
-        index = 0
+        chunk_index = 0
         async for chunk_data in chunkify_file(file, MAX_CHUNK_SIZE):
-            index += 1
-            chunk_index = index.to_bytes(4)
-
-            await self.send(Packet(PacketType.TRANSFER_CHUNK, chunk_index + chunk_data))
+            chunk_index += 1
+            await self._send_chunk(chunk_index, chunk_data)
+    
+    async def _receive_chunk(self, file: AsyncBufferedReader) -> None:
+        chunk_packet = await self.receive()
+        if chunk_packet.type != PacketType.TRANSFER_CHUNK:
+            raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
+        
+        chunk_index = int.from_bytes(chunk_packet.payload[:4])
+        chunk_data = chunk_packet.payload[4:]
+        
+        await save_chunk(file, chunk_index, MAX_CHUNK_SIZE, chunk_data)
 
     async def receive_file(self) -> AsyncBufferedReader:
         initial_packet = await self.receive()
@@ -136,25 +150,10 @@ class Peer:
         file_size = chunk_count * MAX_CHUNK_SIZE
 
         print(f"Receiving file `{file_name}` ({chunk_count} chunks, {round(file_size / 1024 / 1024)} MiB)")
-        received_chunk_count = 0
 
         async with aiofiles.open(file_name, 'w+b') as f:
             await f.truncate(file_size)
-
-            for _ in range(chunk_count):
-                chunk_packet = await self.receive()
-                if chunk_packet.type != PacketType.TRANSFER_CHUNK:
-                    raise ValueError(f"expected TRANSFER_CHUNK, got {chunk_packet.type.name}")
-                
-                chunk_index = int.from_bytes(chunk_packet.payload[:4])
-                chunk_data = chunk_packet.payload[4:]
-                
-                await save_chunk(f, chunk_index, MAX_CHUNK_SIZE, chunk_data)
-
-                received_chunk_count += 1
-                progress = round((received_chunk_count / chunk_count) * 100)
-                if progress != 0 and progress % 5 == 0:
-                    print(f"Progress: {progress}%")
+            await asyncio.gather(*(self._receive_chunk(f) for _ in range(chunk_count)))
         
         return f
 
@@ -175,7 +174,7 @@ async def main():
         case 'recv':
             await peer.receive_file()
         case 'send':
-            async with aiofiles.open("../Teardown 2024-08-07.zip", 'rb') as f:  # type: ignore[assignment]
+            async with aiofiles.open("../image.png", 'rb') as f:  # ../Teardown 2024-08-07.zip
                 await peer.send_file(f)
         case _:
             raise ValueError("unknown mode")
